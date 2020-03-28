@@ -25,14 +25,16 @@ import sys
 
 from flask import Flask, request, Response, jsonify, send_file, send_from_directory
 from flask_cors import CORS
-from gevent.wsgi import WSGIServer
+from gevent.pywsgi import WSGIServer
 
 from allennlp.common import JsonDict
 from allennlp.common.util import import_submodules
 from allennlp.models.archival import load_archive
-from allennlp.service.predictors import Predictor
-from allennlp.service.server_flask import ServerError
+from allennlp.predictors import Predictor
+from allennlp.service.server_simple import ServerError
 
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+                    level=logging.DEBUG)
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
@@ -92,7 +94,7 @@ def make_app(predictor: Predictor,
 
         data = request.get_json()
 
-        prediction = predictor.predict_json(data, cuda_device=0)
+        prediction = predictor.predict_json(data) #, cuda_device=0)
         if sanitizer is not None:
             prediction = sanitizer(prediction)
 
@@ -137,7 +139,9 @@ def main(args):
     for package_name in args.include_package:
         import_submodules(package_name)
 
-    archive = load_archive(args.archive_path or 'tests/fixtures/bidaf/serialization/model.tar.gz', cuda_device=0)
+    # TODO: add arg for CUDA device
+    archive = load_archive(args.archive_path or 'tests/fixtures/bidaf/serialization/model.tar.gz',
+                           cuda_device=-1)
     predictor = Predictor.from_archive(archive, args.predictor or 'machine-comprehension')
     field_names = args.field_name or ['passage', 'question']
 

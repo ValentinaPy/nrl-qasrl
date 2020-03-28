@@ -13,7 +13,7 @@ from allennlp.common.util import JsonDict
 from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
 from allennlp.data import DatasetReader, Instance
 from allennlp.data.fields import ListField, SpanField
-from allennlp.service.predictors import Predictor
+from allennlp.predictors import Predictor
 from allennlp.common.file_utils import cached_path
 
 from nrl.data.util import cleanse_sentence_text
@@ -93,6 +93,9 @@ class QaSrlParserPredictor(Predictor):
 
         return instances, result_dict, words, verb_indexes
 
+
+    def predict(self, sentence) -> JsonDict:
+        return self.predict_json({'sentence': sentence})
 
     @overrides
     def predict_json(self, inputs: JsonDict, cuda_device: int = 0) -> JsonDict:

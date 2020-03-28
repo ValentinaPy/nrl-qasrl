@@ -11,6 +11,7 @@ from allennlp.data import Vocabulary
 from nrl.models.question_predictor import QuestionPredictor
 from nrl.models.span_detector import SpanDetector
 
+
 @Model.register("qasrl_parser")
 class QaSrlParser(Model):
     def __init__(self, vocab: Vocabulary,
@@ -30,8 +31,10 @@ class QaSrlParser(Model):
         raise NotImplementedException()
 
     @classmethod
-    def from_params(cls, vocab: Vocabulary, params: Params) -> 'QaSrlParser':
-        span_detector = Model.from_params(vocab, params.pop("span_detector"))
-        question_predictor = Model.from_params(vocab, params.pop("question_predictor"))
+    def from_params(cls, params: Params, vocab: Vocabulary, **extras) -> 'QaSrlParser':
+        span_detector_params = params.pop("span_detector")
+        question_predictor_params = params.pop("question_predictor")
+        span_detector = Model.from_params(vocab=vocab, params=span_detector_params)
+        question_predictor = Model.from_params(vocab=vocab, params=question_predictor_params)
 
-        return QaSrlParser(vocab, span_detector = span_detector, question_predictor = question_predictor)
+        return QaSrlParser(vocab, span_detector=span_detector, question_predictor=question_predictor)

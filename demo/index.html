@@ -39,7 +39,7 @@
             </div>
         </div>
     </body>
-    <script src="node_modules/gojs/release/go-debug.js"></script>
+    <script src="go-debug.js"></script>
     <script>
     function predict() {
         var quotedFieldList = ['sentence'];
@@ -84,7 +84,7 @@
                             span = pair['spans'][k];
                             span_key = "span_" + verb_ind + "_" + j + "_" + k
 
-                            nodes.push({key: span_key, text:span, color:"lightyellow"});
+                            nodes.push({key: span_key, text:span.text, color:"lightyellow"});
                             links.push({from: question_key, to: span_key});
                         }
                     }

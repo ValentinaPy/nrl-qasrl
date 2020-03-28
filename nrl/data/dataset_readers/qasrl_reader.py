@@ -191,7 +191,10 @@ class QaSrlReader(DatasetReader):
 
     @classmethod
     def from_params(cls, params: Params) -> 'QaSrlReader':
-        token_indexers = TokenIndexer.dict_from_params(params.pop('token_indexers', Params({"tokens": {"type": "single_id", "lowercase_tokens": True}})))
+        token_idxr_params = params.pop('token_indexers',
+                                       Params({"tokens": {"type": "single_id", "lowercase_tokens": True}}))
+        token_indexers = {idxr_name: TokenIndexer.from_params(idxr_params)
+                          for idxr_name, idxr_params in token_idxr_params.items()}
         has_provinence = params.pop("has_provinence", False)
         bio_labels = params.pop("bio_labels", False)
 

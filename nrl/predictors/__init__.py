@@ -1,0 +1,1 @@
+from nrl.predictors.qasrl_parser import QaSrlParserPredictor

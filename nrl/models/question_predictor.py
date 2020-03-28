@@ -148,7 +148,7 @@ class QuestionPredictor(Model):
     @classmethod
     def from_params(cls, vocab: Vocabulary, params: Params) -> 'BIOLabeler':
         embedder_params = params.pop("text_field_embedder")
-        text_field_embedder = TextFieldEmbedder.from_params(vocab, embedder_params)
+        text_field_embedder = TextFieldEmbedder.from_params(vocab=vocab, params=embedder_params)
         stacked_encoder = Seq2SeqEncoder.from_params(params.pop("stacked_encoder"))
         predicate_feature_dim = params.pop("predicate_feature_dim", 100)
         dim_hidden = params.pop("hidden_dim", 100)

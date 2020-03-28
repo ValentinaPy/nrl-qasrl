@@ -46,7 +46,8 @@ class SpanDetector(Model):
 
         self.stacked_encoder = stacked_encoder
 
-        self.span_hidden = SpanRepAssembly(self.stacked_encoder.get_output_dim(), self.stacked_encoder.get_output_dim(), self.dim_hidden)
+        self.span_hidden = SpanRepAssembly(self.stacked_encoder.get_output_dim(), self.stacked_encoder.get_output_dim(),
+                                           self.dim_hidden)
         self.pred = TimeDistributed(Linear(self.dim_hidden, 1))
 
     def forward(self,  # type: ignore
@@ -58,7 +59,7 @@ class SpanDetector(Model):
         embedded_text_input = self.embedding_dropout(self.text_field_embedder(text))
         mask = get_text_field_mask(text)
         embedded_predicate_indicator = self.predicate_feature_embedding(predicate_indicator.long())
- 
+
         embedded_text_with_predicate_indicator = torch.cat([embedded_text_input, embedded_predicate_indicator], -1)
         batch_size, sequence_length, embedding_dim_with_predicate_feature = embedded_text_with_predicate_indicator.size()
 
@@ -77,8 +78,10 @@ class SpanDetector(Model):
         output_dict = {"logits": logits, "probs": probs, 'span_mask': span_mask}
         if labeled_spans is not None:
             span_label_mask = (labeled_spans[:, :, 0] >= 0).squeeze(-1).long()
-            prediction_mask = self.get_prediction_map(labeled_spans, span_label_mask, sequence_length, annotations=annotations)
-            loss = F.binary_cross_entropy_with_logits(logits, prediction_mask, weight=span_mask.float(), size_average=False)
+            prediction_mask = self.get_prediction_map(labeled_spans, span_label_mask, sequence_length,
+                                                      annotations=annotations)
+            loss = F.binary_cross_entropy_with_logits(logits, prediction_mask, weight=span_mask.float(),
+                                                      size_average=False)
             output_dict["loss"] = loss
             if not self.training:
                 spans = self.to_scored_spans(probs, span_mask)
@@ -104,7 +107,7 @@ class SpanDetector(Model):
         return spans
 
     def start_end_range(self, num_spans):
-        n = int(.5 * (math.sqrt(8 * num_spans + 1) -1))
+        n = int(.5 * (math.sqrt(8 * num_spans + 1) - 1))
 
         result = []
         i = 0
@@ -117,10 +120,11 @@ class SpanDetector(Model):
 
     def get_prediction_map(self, spans, span_mask, seq_length, annotations=None):
         batchsize, num_spans, _ = spans.size()
-        num_labels = int((seq_length * (seq_length+1))/2)
+        num_labels = int((seq_length * (seq_length + 1)) / 2)
         labels = spans.data.new().resize_(batchsize, num_labels).zero_().float()
         spans = spans.data
-        arg_indexes = (2 * spans[:,:,0] * seq_length - spans[:,:,0].float().pow(2).long() + spans[:,:,0]) / 2 + (spans[:,:,1] - spans[:,:,0])
+        arg_indexes = (2 * spans[:, :, 0] * seq_length - spans[:, :, 0].float().pow(2).long() + spans[:, :, 0]) / 2 + (
+                    spans[:, :, 1] - spans[:, :, 0])
         arg_indexes = arg_indexes * span_mask.data
 
         for b in range(batchsize):
@@ -137,7 +141,6 @@ class SpanDetector(Model):
         spans = self.to_scored_spans(probs, mask)
         output_dict['spans'] = spans
         return output_dict
- 
 
         """
         Does constrained viterbi decoding on class probabilities output in :func:`forward`.  The
@@ -163,12 +166,12 @@ class SpanDetector(Model):
 
     def get_metrics(self, reset: bool = False):
         metric_dict = self.threshold_metric.get_metric(reset=reset)
-        #if self.training:
-            # This can be a lot of metrics, as there are 3 per class.
-            # During training, we only really care about the overall
-            # metrics, so we filter for them here.
-            # TODO(Mark): This is fragile and should be replaced with some verbosity level in Trainer.
-            #return {x: y for x, y in metric_dict.items() if "overall" in x}
+        # if self.training:
+        # This can be a lot of metrics, as there are 3 per class.
+        # During training, we only really care about the overall
+        # metrics, so we filter for them here.
+        # TODO(Mark): This is fragile and should be replaced with some verbosity level in Trainer.
+        # return {x: y for x, y in metric_dict.items() if "overall" in x}
 
         return metric_dict
 
@@ -200,7 +203,7 @@ class SpanDetector(Model):
     @classmethod
     def from_params(cls, vocab: Vocabulary, params: Params) -> 'SpanDetector':
         embedder_params = params.pop("text_field_embedder")
-        text_field_embedder = TextFieldEmbedder.from_params(vocab, embedder_params)
+        text_field_embedder = TextFieldEmbedder.from_params(vocab=vocab, params=embedder_params)
         stacked_encoder = Seq2SeqEncoder.from_params(params.pop("stacked_encoder"))
         predicate_feature_dim = params.pop("predicate_feature_dim")
         dim_hidden = params.pop("hidden_dim", 100)
@@ -214,33 +217,35 @@ class SpanDetector(Model):
                    text_field_embedder=text_field_embedder,
                    stacked_encoder=stacked_encoder,
                    predicate_feature_dim=predicate_feature_dim,
-                   dim_hidden = dim_hidden,
+                   dim_hidden=dim_hidden,
                    initializer=initializer,
                    regularizer=regularizer)
+
 
 def perceptron_loss(logits, prediction_mask, score_mask):
     batch_size, seq_length, _ = logits.size()
 
     max_bad, _ = (logits + (prediction_mask == 0).float().log() + score_mask.float().log()).view(batch_size, -1).max(1)
-    min_good, _ = (logits - (prediction_mask == 1).float().log()  - score_mask.float().log()).view(batch_size, -1).min(1) 
+    min_good, _ = (logits - (prediction_mask == 1).float().log() - score_mask.float().log()).view(batch_size, -1).min(1)
 
     bad_scores = (min_good.view(batch_size, 1, 1) - logits)
     bad_violations = bad_scores * (bad_scores < 0).float() * (prediction_mask == 0).float() * score_mask.float()
-    #bad_norms = bad_violations.float().view(batch_size, -1).sum(1).view(batch_size, 1, 1).expand(batch_size, seq_length, seq_length)
-    #bad_scores = bad_violations.masked_select(bad_violations < 0)
-    #bad_scores = - bad_scores / bad_norms.masked_select(bad_violations < 0)
-    #bad_violations = bad_scores
+    # bad_norms = bad_violations.float().view(batch_size, -1).sum(1).view(batch_size, 1, 1).expand(batch_size, seq_length, seq_length)
+    # bad_scores = bad_violations.masked_select(bad_violations < 0)
+    # bad_scores = - bad_scores / bad_norms.masked_select(bad_violations < 0)
+    # bad_violations = bad_scores
 
     good_scores = (max_bad.view(batch_size, 1, 1) - logits)
     good_violations = good_scores * (good_scores > 0).float() * prediction_mask.float() * score_mask.float()
-    #good_norms = good_violations.float().view(batch_size, -1).sum(1).view(batch_size, 1, 1).expand(batch_size, seq_length, seq_length)
-    #good_scores = good_violations.masked_select(good_violations > 0)
-    #good_scores = good_scores / good_norms.masked_select(good_violations > 0)
-    #good_violations = good_scores
+    # good_norms = good_violations.float().view(batch_size, -1).sum(1).view(batch_size, 1, 1).expand(batch_size, seq_length, seq_length)
+    # good_scores = good_violations.masked_select(good_violations > 0)
+    # good_scores = good_scores / good_norms.masked_select(good_violations > 0)
+    # good_violations = good_scores
 
     loss = good_violations.sum() - bad_violations.sum()
 
     return loss
+
 
 def write_to_conll_eval_file(prediction_file: TextIO,
                              gold_file: TextIO,
