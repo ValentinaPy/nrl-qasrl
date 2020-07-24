@@ -6,3 +6,5 @@ data/glove
 data/elmo
 demo/node_modules
 demo/package-lock.json
+.idea/
+weights.th
